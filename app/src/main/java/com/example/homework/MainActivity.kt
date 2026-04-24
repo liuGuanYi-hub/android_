@@ -331,18 +331,18 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).background(Color(0xFFF8F9FA))) {
-            // 顶部标题
+            // 顶部标题 - 修复为图片样式
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFE6D9A2))
-                    .padding(16.dp)
+                    .background(Color(0xFF4A5982))
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
                 Text(
-                    text = "猫猫通讯录",
-                    modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color(0xFF5D542C)
+                    text = "猫咪通讯录",
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
                 )
             }
 
@@ -375,28 +375,37 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
                 }
             }
 
-            Column(modifier = Modifier.background(Color(0xFFF8F9FA))) {
+            Column(modifier = Modifier.background(Color.White)) {
+                // 筛选栏 - 修复为图片样式
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         listOf("大橘", "蓝猫", "暹罗").forEach { category ->
-                            Surface(
+                            val isSelected = selectedCategory == category
+                            Card(
                                 onClick = { viewModel.updateCategory(category) },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (selectedCategory == category) Color(0xFF5D542C) else Color.White,
-                                contentColor = if (selectedCategory == category) Color.White else Color.Black,
-                                modifier = Modifier.height(32.dp).border(1.dp, Color(0xFF5D542C).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(0xFF4A5982) else Color.White
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                modifier = Modifier.height(44.dp).width(64.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                    Text(category, fontSize = 13.sp)
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text(
+                                        text = category,
+                                        fontSize = 16.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) Color.White else Color.Black
+                                    )
                                 }
                             }
                         }
                     }
-                    Text("学号：202303038129", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF5D542C))
+                    Text("学号：202303038129", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
                 
                 OutlinedTextField(
@@ -408,7 +417,7 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF5D542C),
+                        focusedBorderColor = Color(0xFF4A5982),
                         unfocusedBorderColor = Color.LightGray
                     )
                 )
