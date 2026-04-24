@@ -49,9 +49,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -61,10 +61,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.homework.ui.theme.HomeworkTheme
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 // --- 1. 数据模型与接口 ---
 data class Cat(
@@ -82,7 +85,7 @@ interface CatRepository {
     fun getCats(category: String): Flow<List<Cat>>
 }
 
-class CatFakeRepository : CatRepository {
+class CatFakeRepository @Inject constructor() : CatRepository {
     override fun getCats(category: String): Flow<List<Cat>> = flow {
         delay(1000) // 模拟网络延迟
         val cats = List(50) { i ->
@@ -108,7 +111,8 @@ sealed interface CatsUiState {
 }
 
 // --- 3. ViewModel 构建 ---
-class MainViewModel(private val repository: CatRepository = CatFakeRepository()) : ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(private val repository: CatRepository) : ViewModel() {
     private val _selectedCategory = MutableStateFlow("大橘")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
 
@@ -167,6 +171,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Profile : Screen("profile", "个人资料", Icons.Default.Person)
 }
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -180,7 +185,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(viewModel: MainViewModel = viewModel()) {
+fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val items = remember { listOf(Screen.Contacts, Screen.Favorites, Screen.Profile) }
