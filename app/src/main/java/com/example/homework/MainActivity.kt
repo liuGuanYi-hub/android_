@@ -70,16 +70,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // --- 1. 数据模型与接口 ---
-data class Cat(
-    val id: Int,
-    val name: String,
-    val status: String,
-    val bio: String,
-    val imageRes: Int,
-    var isLiked: Boolean = false,
-    var isFavorite: Boolean = false,
-    var likes: Int = 0
-)
 
 interface CatRepository {
     fun getCats(category: String): Flow<List<Cat>>
