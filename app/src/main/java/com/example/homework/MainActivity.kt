@@ -138,6 +138,11 @@ class MainViewModel @Inject constructor(private val repository: CatRepository) :
                 }
         }
     }
+
+    // 临时添加：从网络刷新，验证 API -> Repository -> ViewModel 链路
+    fun refreshFromNetwork() {
+        fetchCats()
+    }
     
     private fun filterCats() {
         val query = _searchQuery.value
@@ -334,6 +339,14 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
+                
+                // 临时添加刷新按钮验证链路
+                IconButton(
+                    onClick = { viewModel.refreshFromNetwork() },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = "刷新", tint = Color.White)
+                }
             }
 
             // 网络状态横幅
