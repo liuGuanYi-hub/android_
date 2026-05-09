@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
@@ -75,22 +77,7 @@ interface CatRepository {
     fun getCats(category: String): Flow<List<Cat>>
 }
 
-class CatFakeRepository @Inject constructor() : CatRepository {
-    override fun getCats(category: String): Flow<List<Cat>> = flow {
-        delay(1000) // 模拟网络延迟
-        val cats = List(50) { i ->
-            val img = when (category) {
-                "蓝猫" -> R.drawable.cat_blue
-                "暹罗" -> R.drawable.cat_siamese
-                else -> R.drawable.cat_orange
-            }
-            Cat(i, "$category${i + 1}", if (i % 2 == 0) "Online" else "Offline", 
-                "圆滚滚的干饭小能手，性格温顺粘人，自带携带福气buff，走到哪都像攒着小太阳，是公认的暖心招财猫。", img,
-                likes = (0..10).random())
-        }
-        emit(cats)
-    }
-}
+// 移除 CatFakeRepository 以避免 Hilt 注入冲突
 
 // --- 2. UI 状态建模 ---
 sealed interface CatsUiState {
@@ -127,19 +114,23 @@ class MainViewModel @Inject constructor(private val repository: CatRepository) :
     }
 
     fun fetchCats(category: String = _selectedCategory.value) {
+        Log.d("MainViewModel", "开始获取猫咪数据, 分类: $category")
         fetchJob?.cancel()
         _uiState.value = CatsUiState.Loading
         fetchJob = viewModelScope.launch {
             repository.getCats(category)
-                .catch { _uiState.value = CatsUiState.Error("加载失败") }
+                .catch { e -> 
+                    Log.e("MainViewModel", "获取失败: ${e.message}")
+                    _uiState.value = CatsUiState.Error("加载失败: ${e.message}") 
+                }
                 .collect { cats ->
+                    Log.d("MainViewModel", "获取成功, 数量: ${cats.size}")
                     allCats = cats
                     filterCats()
                 }
         }
     }
 
-    // 临时添加：从网络刷新，验证 API -> Repository -> ViewModel 链路
     fun refreshFromNetwork() {
         fetchCats()
     }
@@ -260,27 +251,12 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
     DisposableEffect(context) {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                isNetworkAvailable = true
-            }
-            override fun onLost(network: Network) {
-                isNetworkAvailable = false
-            }
+            override fun onAvailable(network: Network) { isNetworkAvailable = true }
+            override fun onLost(network: Network) { isNetworkAvailable = false }
         }
-        
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        val request = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
         connectivityManager.registerNetworkCallback(request, callback)
-        
-        // 初始化检查
-        val activeNetwork = connectivityManager.activeNetwork
-        val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
-        isNetworkAvailable = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        
-        onDispose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
+        onDispose { connectivityManager.unregisterNetworkCallback(callback) }
     }
     
     var searchText by remember { mutableStateOf("") }
@@ -289,9 +265,7 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
         snapshotFlow { searchText }
             .debounce(500)
             .distinctUntilChanged()
-            .collect { query ->
-                viewModel.updateSearchQuery(query)
-            }
+            .collect { query -> viewModel.updateSearchQuery(query) }
     }
 
     LaunchedEffect(Unit) {
@@ -301,37 +275,24 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
     }
 
     val listState = rememberLazyListState()
-    val showFAB by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 3 }
-    }
+    val showFAB by remember { derivedStateOf { listState.firstVisibleItemIndex > 3 } }
 
     Scaffold(
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = showFAB,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            AnimatedVisibility(visible = showFAB, enter = fadeIn(), exit = fadeOut()) {
                 FloatingActionButton(
-                    onClick = {
-                        scope.launch { listState.animateScrollToItem(0) }
-                    },
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
                     containerColor = Color(0xFF4A5982),
                     contentColor = Color.White,
                     shape = CircleShape
-                ) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "回到顶部")
-                }
+                ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "回到顶部") }
             }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).background(Color(0xFFF8F9FA))) {
-            // 顶部标题 - 修复为图片样式
+            // 顶部标题
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF4A5982))
-                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                modifier = Modifier.fillMaxWidth().background(Color(0xFF4A5982)).padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
                 Text(
                     text = "猫咪通讯录",
@@ -340,46 +301,30 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
                     color = Color.White
                 )
                 
-                // 临时添加刷新按钮验证链路
+                // 刷新按钮改为 Refresh 图标，更加明显
                 IconButton(
                     onClick = { viewModel.refreshFromNetwork() },
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "刷新", tint = Color.White)
+                    Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = Color.White)
                 }
             }
 
             // 网络状态横幅
-            AnimatedVisibility(
-                visible = !isNetworkAvailable,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
+            AnimatedVisibility(visible = !isNetworkAvailable) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFFFDADA))
-                        .padding(8.dp),
+                    modifier = Modifier.fillMaxWidth().background(Color(0xFFFFDADA)).padding(8.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFB71C1C),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.Warning, null, tint = Color(0xFFB71C1C), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "网络已断开，部分功能不可用",
-                        color = Color(0xFFB71C1C),
-                        fontSize = 14.sp
-                    )
+                    Text("网络已断开", color = Color(0xFFB71C1C), fontSize = 14.sp)
                 }
             }
 
             Column(modifier = Modifier.background(Color.White)) {
-                // 筛选栏 - 修复为图片样式
+                // 筛选栏
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -391,66 +336,56 @@ fun CatListScreen(viewModel: MainViewModel, snackbarHostState: SnackbarHostState
                             Card(
                                 onClick = { viewModel.updateCategory(category) },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) Color(0xFF4A5982) else Color.White
-                                ),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF4A5982) else Color.White),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier.height(44.dp).width(64.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                    Text(
-                                        text = category,
-                                        fontSize = 16.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) Color.White else Color.Black
-                                    )
+                                    Text(category, fontSize = 16.sp, color = if (isSelected) Color.White else Color.Black)
                                 }
                             }
                         }
                     }
-                    Text("学号：202303038129", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text("学号：202303038129", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
                 
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    modifier = Modifier.fillMaxWidth().padding(8.dp).background(Color.White, RoundedCornerShape(8.dp)),
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
                     placeholder = { Text("搜索猫咪名字...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF4A5982),
-                        unfocusedBorderColor = Color.LightGray
-                    )
+                    shape = RoundedCornerShape(8.dp)
                 )
             }
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 when (val state = uiState) {
                     is CatsUiState.Loading -> CircularProgressIndicator(color = Color(0xFF4A5982))
-                    is CatsUiState.Error -> Text(state.message, color = Color.Red)
+                    is CatsUiState.Error -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(state.message, color = Color.Red, modifier = Modifier.padding(16.dp))
+                            Button(onClick = { viewModel.refreshFromNetwork() }) {
+                                Text("重试")
+                            }
+                        }
+                    }
                     is CatsUiState.Success -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.cats, key = { it.id }) { cat -> 
-                                CatItem(
-                                    cat = cat, 
-                                    onClick = { onCatClick(cat.id) },
-                                    onCallClick = {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                message = "正在呼叫 ${cat.name}...",
-                                                actionLabel = "取消",
-                                                duration = SnackbarDuration.Short
-                                            )
-                                        }
-                                    }
-                                )
+                        if (state.cats.isEmpty()) {
+                            Text("没有找到相关的猫咪", color = Color.Gray)
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.cats, key = { it.id }) { cat -> 
+                                    CatItem(cat = cat, onClick = { onCatClick(cat.id) }, onCallClick = {
+                                        scope.launch { snackbarHostState.showSnackbar("正在呼叫 ${cat.name}...") }
+                                    })
+                                }
                             }
                         }
                     }
@@ -480,19 +415,12 @@ fun CatItem(cat: Cat, onClick: () -> Unit, onCallClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(cat.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(" · ", color = Color.Gray, style = MaterialTheme.typography.titleLarge)
-                    Text(cat.status, style = MaterialTheme.typography.titleMedium, color = if (cat.status == "Online") Color(0xFF4CAF50) else Color.Gray)
+                    Text(" · ", color = Color.Gray)
+                    Text(cat.status, color = if (cat.status == "Online" || cat.status.contains("猫")) Color(0xFF4CAF50) else Color.Gray)
                 }
-                Text(cat.bio, style = MaterialTheme.typography.bodyMedium, color = Color.Black, maxLines = 1)
+                Text(cat.bio, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.LightGray)
-                Text("${cat.likes}", fontSize = 10.sp, color = Color.Gray)
-            }
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = onCallClick) {
-                Icon(Icons.Default.Call, contentDescription = "呼叫", tint = Color(0xFF4CAF50))
-            }
+            IconButton(onClick = onCallClick) { Icon(Icons.Default.Call, null, tint = Color(0xFF4CAF50)) }
         }
     }
 }
@@ -507,88 +435,27 @@ fun CatDetailScreen(cat: Cat, snackbarHostState: SnackbarHostState, onBack: () -
     Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
         TopAppBar(
             title = { Text("猫猫详情", fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                }
-            },
-            actions = {
-                Text(
-                    text = "202303038129",
-                    modifier = Modifier.padding(end = 16.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.DarkGray
-                )
-            },
+            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFC5CAE9))
         )
-        
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(cat.imageRes),
                 contentDescription = null,
                 modifier = Modifier.size(200.dp).clip(CircleShape).border(4.dp, Color(0xFFC5CAE9), CircleShape),
                 contentScale = ContentScale.Crop
             )
-            
             Spacer(Modifier.height(24.dp))
-            
             Text(cat.name, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3F51B5))
-            
             Spacer(Modifier.height(16.dp))
-            
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text("签名：专心干饭中，勿扰", color = Color.Gray)
-                Spacer(Modifier.height(8.dp))
-                Text(cat.bio, style = MaterialTheme.typography.bodyLarge, color = Color.DarkGray)
-            }
-            
+            Text(cat.bio, style = MaterialTheme.typography.bodyLarge, color = Color.DarkGray)
             Spacer(Modifier.height(32.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable {
-                        isLiked = !isLiked
-                        scope.launch {
-                            snackbarHostState.showSnackbar(if (isLiked) "点赞成功！" else "已取消点赞")
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "点赞",
-                        tint = if (isLiked) Color.Red else Color.Gray,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (isLiked) "1" else "0", color = Color.Gray)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                IconButton(onClick = { isLiked = !isLiked }) {
+                    Icon(if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = Color.Red)
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable {
-                        isFavorite = !isFavorite
-                        scope.launch {
-                            snackbarHostState.showSnackbar(if (isFavorite) "已加入收藏" else "已取消收藏")
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.Star,
-                        contentDescription = "收藏",
-                        tint = if (isFavorite) Color(0xFFFFB300) else Color.Gray,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (isFavorite) "已收藏" else "收藏", color = Color.Gray)
+                IconButton(onClick = { isFavorite = !isFavorite }) {
+                    Icon(if (isFavorite) Icons.Default.Star else Icons.Outlined.Star, null, tint = Color(0xFFFFB300))
                 }
             }
         }

@@ -1,0 +1,68 @@
+{
+  "cats": [
+    {
+      "id": 1,
+      "name": "大橘",
+      "breed": "橘猫",
+      "image": "cat_jumao",
+      "signature": "能吃是福，胖是可爱",
+      "description": "橘猫是最常见的家猫品种之一，以贪吃和亲人著称。体型圆润，毛色从浅橘到深橘不等，性格温顺活泼。"
+    },
+    {
+      "id": 2,
+      "name": "蓝猫",
+      "breed": "英国短毛猫",
+      "image": "cat_lanmao",
+      "signature": "",
+      "description": "英国短毛猫（蓝猫）拥有浓密的蓝灰色短毛和圆润的体型，性格沉稳安静，是理想的室内伴侣猫。"
+    },
+    {
+      "id": 3,
+      "name": "暹罗",
+      "breed": "暹罗猫",
+      "image": "cat_xianluo",
+      "signature": "话多不是我的错",
+      "description": "暹罗猫原产于泰国，以重点色毛色和蓝色杏仁眼闻名。性格外向活泼，喜欢与人互动，叫声独特且频繁。"
+    },
+    {
+      "id": 4,
+      "name": "布偶",
+      "breed": "布偶猫",
+      "image": "cat_buou",
+      "signature": "",
+      "description": "布偶猫体型大、毛发柔软，性格温顺如布偶般任人抱持，是最受欢迎的长毛猫品种之一。"
+    },
+    {
+      "id": 5,
+      "name": "狸花",
+      "breed": "中华狸花猫",
+      "image": "cat_lihua",
+      "signature": "抓老鼠我是专业的",
+      "description": "中华狸花猫是中国本土品种，身体强健、适应力强，拥有经典的鱼骨纹虎斑花纹，聪明且独立。"
+    },
+    {
+      "id": 6,
+      "name": "三花",
+      "breed": "三花猫",
+      "image": "cat_sanhua",
+      "signature": "招财进宝，非我莫属",
+      "description": "三花猫拥有白、橘、黑三色毛发，几乎全为母猫。在民间被视为招财猫的原型，性格机灵亲人。"
+    },
+    {
+      "id": 7,
+      "name": "奶牛",
+      "breed": "奶牛猫",
+      "image": "cat_nainiu",
+      "signature": "黑白分明，做猫要有原则",
+      "description": "奶牛猫以黑白相间的毛色得名，性格活泼好动、精力旺盛，常有出人意料的搞怪行为。"
+    },
+    {
+      "id": 8,
+      "name": "折耳",
+      "breed": "苏格兰折耳猫",
+      "image": "cat_zheer",
+      "signature": "耳朵虽折，气场不折",
+      "description": "苏格兰折耳猫因基因突变导致耳朵向前折叠，外表可爱独特，性格安静温和，喜欢陪伴主人。"
+    }
+  ]
+}
